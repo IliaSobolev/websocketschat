@@ -15,6 +15,11 @@ var upgrader = websocket.Upgrader{
 
 var clientMutex sync.RWMutex
 
+type Message struct {
+	Type    int    `json:"type"`
+	Content string `json:"content"`
+}
+
 func main() {
 	r := mux.NewRouter()
 	conns := make(map[string][]*websocket.Conn, 1)
@@ -47,7 +52,10 @@ func main() {
 		log.Info().Str("ip", r.RemoteAddr).Msg("Connected")
 
 		for {
+			var message Message
 			msgType, msg, err := conn.ReadMessage()
+			message.Type = msgType
+			message.Content = string(msg)
 			if err != nil {
 				log.Debug().Err(err).Str("ip", r.RemoteAddr).Send()
 				return
@@ -56,7 +64,7 @@ func main() {
 
 			clientMutex.RLock()
 			for _, client := range conns[key] {
-				err := client.WriteMessage(msgType, msg)
+				err := client.WriteMessage(message.Type, []byte(message.Content))
 				if err != nil {
 					log.Debug().Err(err).Send()
 					return
